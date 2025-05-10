@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Place Order - Restaurant</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f8b500, #fceabb);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      background: white;
+      padding: 25px 30px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      width: 320px;
+      max-width: 90vw;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #ff6f00;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #333;
+    }
+    input[type="number"], select {
+      padding: 10px 12px;
+      margin-bottom: 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+    button {
+      background-color: #ff6f00;
+      border: none;
+      padding: 12px 0;
+      border-radius: 8px;
+      color: white;
+      font-weight: 700;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #e65c00;
+    }
+    .message {
+      margin-top: 15px;
+      text-align: center;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <main class="container" role="main">
+    <h2>Place Your Order</h2>
+    <form id="orderForm" novalidate>
+      <label for="food">Select Food:</label>
+      <select class="form-control" id="food" required>
+        <!-- Options will be populated by JavaScript -->
+      </select>
+
+      <label for="quantity">Quantity:</label>
+      <input type="number" id="quantity" name="quantity" min="1" required />
+
+      <button type="submit">Add to Cart</button>
+    </form>
+
+    <h3>Your Cart:</h3>
+    <ul id="cartList"></ul>
+    <div id="orderSummary" class="message" aria-live="polite"></div>
+
+    <button id="placeOrderBtn" style="display:none;">Place Order</button>
+  </main>
+
+  <script>
+    const cart = [];
+
+    // Load menu items
+    fetch('/menu')
+      .then(response => response.json())
+      .then(data => {
+        const foodSelect = document.getElementById('food');
+        data.forEach(item => {
+          const option = document.createElement('option');
+          option.value = item.Food;
+          option.textContent = item.Food;
+          foodSelect.appendChild(option);
+        });
+      })
+      .catch(error => console.error('Error loading menu:', error));
+
+    // Handle add to cart
+    document.getElementById('orderForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      const food = document.getElementById('food').value;
+      const quantity = parseInt(document.getElementById('quantity').value);
+
+      if (!food || quantity <= 0) return;
+
+      cart.push({ food, quantity });
+
+      const cartList = document.getElementById('cartList');
+      const cartItem = document.createElement('li');
+      cartItem.textContent = `${food} x${quantity}`;
+      cartList.appendChild(cartItem);
+
+      document.getElementById('quantity').value = '';
+
+      const total = cart.reduce((acc, item) => acc + (item.quantity * 10), 0);
+      document.getElementById('orderSummary').textContent = `Total: ₹${total}`;
+
+      document.getElementById('placeOrderBtn').style.display = 'block';
+    });
+
+    // Place order
+    document.getElementById('placeOrderBtn').addEventListener('click', function() {
+        if (cart.length === 0) {
+            alert('Your cart is empty!');
+            return;
+        }
+
+        fetch('/place_order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ items: cart })
+        })
+        .then(response => {
+            if (response.status === 429) {
+                return response.json().then(data => {
+                    alert(data.message);
+                    return Promise.reject('Kitchen full');
+                });
+            }
+            if (!response.ok) {
+                throw new Error('Failed to place order');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            }
+        })
+        .catch(error => {
+            if (error !== 'Kitchen full') {
+                console.error('Error:', error);
+                alert('Error placing order: ' + error.message);
+            }
+        });
+    });
+  </script>
+</body>
+</html>

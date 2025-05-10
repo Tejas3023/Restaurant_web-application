@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Restaurant Menu</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f8b500, #fceabb);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 700px;
+      width: 100%;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.15);
+    }
+
+    h1 {
+      color: #ff6f00;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      background: #fff8ed;
+      transition: background 0.3s;
+    }
+
+    .menu-item:hover {
+      background: #fff3e0;
+    }
+
+    .menu-item img {
+      width: 90px;
+      height: 90px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-right: 15px;
+    }
+
+    .details {
+      flex-grow: 1;
+    }
+
+    .details h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #333;
+    }
+
+    .details p {
+      margin: 4px 0 0;
+      color: #666;
+    }
+
+    .place-order {
+      display: block;
+      text-align: center;
+      margin: 20px auto 0;
+      background-color: #ff6f00;
+      color: white;
+      padding: 10px 20px;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+
+    .loading, .error {
+      text-align: center;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="kitchenStatus" style="text-align: center; margin-bottom: 15px; font-weight: bold;"></div>
+    <h1>Restaurant Menu</h1>
+    <div id="loading" class="loading">Loading menu...</div>
+    <div id="menu-list"></div>
+    <div id="error" class="error" style="display:none;"></div>
+    <a href="/order" class="place-order">Place an Order</a>
+  </div>
+
+  <script>
+    const imageMap = {
+      'Paneer Butter Masala': 'https://www.ruchiskitchen.com/wp-content/uploads/2020/12/Paneer-butter-masala-recipe-3.jpg',
+      'Chicken Biryani': 'https://www.cubesnjuliennes.com/wp-content/uploads/2020/07/Chicken-Biryani-Recipe.jpg',
+      'Masala Dosa': 'https://static.toiimg.com/photo/53109843.cms',
+      'Veg Pulao': 'https://rakskitchen.net/wp-content/uploads/2010/12/capsicum-veg-pulao.jpg',
+      'Chole Bhature': 'https://static.toiimg.com/thumb/53314156.cms?width=1200&height=900',
+      'Mutton Rogan Josh': 'https://thumbs.dreamstime.com/z/mutton-rogan-josh-karahi-served-dish-isolated-dark-background-top-view-252177623.jpg',
+      'Pav Bhaji': 'https://img-global.cpcdn.com/recipes/58290099f9d4f97e/1502x1064cq70/pav-bhaji-recipe-recipe-main-photo.jpg',
+      'Tandoori Chicken': 'https://cdn.tasteatlas.com/images/social/733cd5be69a84534b648fca6ef98b2a2.jpg',
+      'Dal Makhani': 'https://th.bing.com/th/id/OIP.sF4b948SFHLbg4JSDLrzPgHaHa?cb=iwc1&rs=1&pid=ImgDetMain',
+      'Hyderabadi Biryani': 'https://recipesofhome.com/wp-content/uploads/2020/06/hyderabadi-chicken-biryani-recipe.jpg',
+      'Gulab Jamun': 'https://th.bing.com/th/id/OIP.Lue9ZKHVwmekaitbKPZroAHaGe?cb=iwc1&rs=1&pid=ImgDetMain',
+      'Kadhai Paneer': 'https://vegecravings.com/wp-content/uploads/2016/03/Kadhai-Paneer-Recipe.jpg',
+      'Fish Curry': 'https://i0.wp.com/southindianrecipes.in/wp-content/uploads/2021/09/Fish-Curry-Recipe.jpg',
+      'Rajma Chawal': 'https://www.secondrecipe.com/wp-content/uploads/2017/08/rajma-chawal-1.jpg',
+      'Butter Naan': 'https://thespicerootindiancuisine.com/wp-content/uploads/2023/10/butter-naan.jpg',
+      'Malai Kofta': 'https://www.whiskaffair.com/wp-content/uploads/2021/06/Malai-Kofta-2-4-1025x1536.jpg',
+      'Shahi Paneer': 'https://recipesblob.oetker.in/assets/6c0ac2f3ce204d3d9bb1df9709fc06c9/1272x764/shahi-paneer.jpg',
+      'Keema Paratha': 'https://www.licious.in/blog/wp-content/uploads/2020/04/shutterstock_83591092.jpg',
+      'Prawn Masala': 'https://www.licious.in/blog/wp-content/uploads/2020/12/Prawns-Masala-min.jpg',
+      'Chicken Tikka Masala': 'https://www.recipetineats.com/wp-content/uploads/2018/04/Chicken-Tikka-Masala_0.jpg'
+    };
+
+    async function loadMenu() {
+      const loading = document.getElementById('loading');
+      const error = document.getElementById('error');
+      const menuList = document.getElementById('menu-list');
+
+      loading.style.display = 'block';
+      error.style.display = 'none';
+      menuList.innerHTML = '';
+
+      try {
+        const res = await fetch('/menu');
+        if (!res.ok) throw new Error('Unable to fetch menu');
+        const data = await res.json();
+
+        data.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'menu-item';
+
+          const img = document.createElement('img');
+          img.src = imageMap[item.Food] || 'https://via.placeholder.com/90';
+          img.alt = item.Food;
+
+          const details = document.createElement('div');
+          details.className = 'details';
+
+          const name = document.createElement('h3');
+          name.textContent = `${item.FoodID}. ${item.Food}`;
+
+          const price = document.createElement('p');
+          price.textContent = `₹${item.Cost}`;
+
+          details.appendChild(name);
+          details.appendChild(price);
+
+          div.appendChild(img);
+          div.appendChild(details);
+          menuList.appendChild(div);
+        });
+
+        loading.style.display = 'none';
+      } catch (err) {
+        loading.style.display = 'none';
+        error.textContent = err.message;
+        error.style.display = 'block';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadMenu);
+
+    function checkKitchenStatus() {
+        fetch('/kitchen/orders')
+            .then(response => response.json())
+            .then(orders => {
+                const statusElement = document.getElementById('kitchenStatus');
+                if (orders.length >= 5) {
+                    statusElement.textContent = "⚠️ Kitchen is currently at full capacity. Orders may be delayed.";
+                    statusElement.style.color = '#d32f2f';
+                } else {
+                    statusElement.textContent = "Kitchen is ready for your order!";
+                    statusElement.style.color = '#388e3c';
+                }
+            })
+            .catch(error => console.error('Error checking kitchen status:', error));
+    }
+
+    // Check status when page loads and every 30 seconds
+    checkKitchenStatus();
+    setInterval(checkKitchenStatus, 30000);
+  </script>
+</body>
+</html>

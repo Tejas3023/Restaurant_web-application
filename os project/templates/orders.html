@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Order Summary - Restaurant</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f8b500, #fceabb);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            width: 100%;
+            max-width: 800px;
+            margin: 20px 0;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #ff6f00;
+        }
+        .order-section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #ff6f00;
+            color: white;
+        }
+        .total-amount {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 15px 0;
+            text-align: right;
+            color: #333;
+        }
+        .payment-options {
+            margin-top: 25px;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        .submit-btn {
+            background-color: #ff6f00;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 15px;
+            transition: background-color 0.3s;
+        }
+        .submit-btn:hover {
+            background-color: #e65c00;
+        }
+        .loading {
+            text-align: center;
+            color: #ff6f00;
+            margin: 10px 0;
+            font-style: italic;
+        }
+        .error {
+            color: #d32f2f;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .priority-high {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        .priority-medium {
+            color: #fb8c00;
+        }
+    </style>
+</head>
+<body>
+    <main class="container" role="main">
+        <h2>Your Order Summary</h2>
+        <div id="errorMessage" class="error"></div>
+        
+        <!-- Segment 1: Current Order -->
+        <div class="order-section">
+            <h3>Current Order</h3>
+            <div id="currentOrder"></div>
+            <div class="total-amount" id="currentOrderTotal"></div>
+        </div>
+
+        <!-- Segment 2: Payment Options -->
+        <div class="order-section payment-options">
+            <h3>Payment Method</h3>
+            <select id="paymentMethod">
+                <option value="upi">UPI Payment</option>
+                <option value="cash">Cash on Delivery</option>
+                <option value="card">Credit/Debit Card</option>
+            </select>
+        </div>
+
+        <!-- Submit Button -->
+        <button class="submit-btn" id="completePurchaseBtn">Complete Purchase</button>
+        <div class="loading" id="loadingMessage"></div>
+
+        <!-- Segment 3: Previous Orders -->
+        <div class="order-section">
+            <h3>Order History</h3>
+            <div id="previousOrders"></div>
+        </div>
+    </main>
+
+    <script>
+        // Function to show loading state
+        function showLoading(message) {
+            document.getElementById('loadingMessage').textContent = message;
+        }
+
+        // Function to show error message
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        // Function to clear messages
+        function clearMessages() {
+            document.getElementById('loadingMessage').textContent = '';
+            document.getElementById('errorMessage').textContent = '';
+        }
+
+        // Fetch and display current order
+        function fetchCurrentOrder() {
+            clearMessages();
+            showLoading("Loading your current order...");
+            
+            fetch('/latest_order')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load current order');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const container = document.getElementById('currentOrder');
+                    const totalElement = document.getElementById('currentOrderTotal');
+                    
+                    if (data.orders && data.orders.length > 0) {
+                        let html = `
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Qty</th>
+                                        <th>Price</th>
+                                        <th>Priority</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+                        
+                        data.orders.forEach(item => {
+                            html += `
+                                <tr>
+                                    <td>${item.Food}</td>
+                                    <td>${item.Quantity}</td>
+                                    <td>₹${item.TotalCost}</td>
+                                    <td class="priority-${item.Priority ? item.Priority.toLowerCase() : 'medium'}">
+                                        ${item.Priority ? item.Priority.charAt(0).toUpperCase() + item.Priority.slice(1) : 'Medium'}
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        
+                        html += `</tbody></table>`;
+                        container.innerHTML = html;
+                        totalElement.textContent = `Total Amount: ₹${data.total_amount}`;
+                    } else {
+                        container.innerHTML = '<p>No current orders found</p>';
+                        totalElement.textContent = '';
+                    }
+                    clearMessages();
+                })
+                .catch(error => {
+                    console.error('Error loading current order:', error);
+                    showError("Error loading current order. Please try again.");
+                    showLoading("");
+                });
+        }
+
+        // Fetch and display previous orders
+        function fetchPreviousOrders() {
+            showLoading("Loading order history...");
+            
+            fetch('/previous_orders')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load order history');
+                    }
+                    return response.json();
+                })
+                .then(orders => {
+                    const container = document.getElementById('previousOrders');
+                    
+                    if (orders && orders.length > 0) {
+                        let html = `
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Qty</th>
+                                        <th>Total</th>
+                                        <th>Date</th>
+                                        <th>Priority</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+                        
+                        orders.forEach(order => {
+                            html += `
+                                <tr>
+                                    <td>${order.Food}</td>
+                                    <td>${order.Quantity}</td>
+                                    <td>₹${order.TotalCost}</td>
+                                    <td>${new Date(order.OrderDate).toLocaleString()}</td>
+                                    <td class="priority-${order.Priority ? order.Priority.toLowerCase() : 'medium'}">
+                                        ${order.Priority ? order.Priority.charAt(0).toUpperCase() + order.Priority.slice(1) : 'Medium'}
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        
+                        html += `</tbody></table>`;
+                        container.innerHTML = html;
+                    } else {
+                        container.innerHTML = '<p>No previous orders found</p>';
+                    }
+                    clearMessages();
+                })
+                .catch(error => {
+                    console.error('Error loading previous orders:', error);
+                    showError("Error loading order history. Please try again.");
+                    showLoading("");
+                });
+        }
+
+        // Handle purchase completion
+        document.getElementById('completePurchaseBtn').addEventListener('click', function() {
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            
+            if (!paymentMethod) {
+                showError("Please select a payment method");
+                return;
+            }
+            
+            clearMessages();
+            showLoading("Processing your payment...");
+            
+            fetch('/finish_purchase', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ paymentMethod })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Payment failed');
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert(data.message || "Purchase completed successfully!");
+                window.location.href = "/menu_page";
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError("Error completing purchase. Please try again.");
+                showLoading("");
+            });
+        });
+
+        // Load data when page opens
+        window.onload = function() {
+            fetchCurrentOrder();
+            fetchPreviousOrders();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitchen Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #ff6f00;
+            text-align: center;
+        }
+        .order {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .high-priority {
+            border-left: 5px solid #d32f2f;
+            background-color: #ffebee;
+        }
+        .medium-priority {
+            border-left: 5px solid #fb8c00;
+            background-color: #fff8e1;
+        }
+        .low-priority {
+            border-left: 5px solid #388e3c;
+            background-color: #e8f5e9;
+        }
+        .order-id {
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+        .customer-name {
+            font-weight: bold;
+            color: #333;
+        }
+        .order-details {
+            margin: 10px 0;
+        }
+        .order-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+        }
+        .status-pending {
+            background-color: #e0e0e0;
+            color: #616161;
+        }
+        .status-preparing {
+            background-color: #bbdefb;
+            color: #1976d2;
+        }
+        .status-completed {
+            background-color: #c8e6c9;
+            color: #388e3c;
+        }
+        button {
+            padding: 6px 12px;
+            margin-right: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .prepare-btn {
+            background-color: #2196f3;
+            color: white;
+        }
+        .complete-btn {
+            background-color: #4caf50;
+            color: white;
+        }
+        #orders-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .last-updated {
+            text-align: center;
+            color: #757575;
+            font-size: 0.9em;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Kitchen Orders</h1>
+    <div id="orders-container"></div>
+    <div class="last-updated" id="lastUpdated"></div>
+    
+    <script>
+        function loadOrders() {
+            fetch('/kitchen/orders')
+                .then(response => response.json())
+                .then(orders => {
+                    const container = document.getElementById('orders-container');
+                    container.innerHTML = '';
+                    
+                    if (orders.length === 0) {
+                        container.innerHTML = '<p>No pending orders</p>';
+                        return;
+                    }
+                    
+                    orders.forEach(order => {
+                        const orderDiv = document.createElement('div');
+                        orderDiv.className = `order ${order.Priority.toLowerCase()}-priority`;
+                        
+                        const header = document.createElement('div');
+                        header.className = 'order-id';
+                        header.textContent = `Order #${order.OrderID}`;
+                        
+                        const customer = document.createElement('div');
+                        customer.className = 'customer-name';
+                        customer.textContent = `Customer: ${order.Name}`;
+                        
+                        const details = document.createElement('div');
+                        details.className = 'order-details';
+                        details.innerHTML = `
+                            <div>Item: ${order.Food} x ${order.Quantity}</div>
+                            <div>Ordered at: ${new Date(order.OrderDate).toLocaleString()}</div>
+                            <div class="order-status status-${order.Status.toLowerCase()}">
+                                Status: ${order.Status.toUpperCase()}
+                            </div>
+                        `;
+                        
+                        const actions = document.createElement('div');
+                        if (order.Status !== 'completed') {
+                            if (order.Status === 'pending') {
+                                const prepareBtn = document.createElement('button');
+                                prepareBtn.className = 'prepare-btn';
+                                prepareBtn.textContent = 'Start Preparing';
+                                prepareBtn.onclick = () => updateOrderStatus(order.OrderID, 'preparing');
+                                actions.appendChild(prepareBtn);
+                            }
+                            const completeBtn = document.createElement('button');
+                            completeBtn.className = 'complete-btn';
+                            completeBtn.textContent = 'Mark Completed';
+                            completeBtn.onclick = () => updateOrderStatus(order.OrderID, 'completed');
+                            actions.appendChild(completeBtn);
+                        }
+                        
+                        orderDiv.appendChild(header);
+                        orderDiv.appendChild(customer);
+                        orderDiv.appendChild(details);
+                        orderDiv.appendChild(actions);
+                        container.appendChild(orderDiv);
+                    });
+                    
+                    document.getElementById('lastUpdated').textContent = 
+                        `Last updated: ${new Date().toLocaleTimeString()}`;
+                })
+                .catch(error => {
+                    console.error('Error loading orders:', error);
+                });
+        }
+
+        function updateOrderStatus(orderId, status) {
+            fetch(`/kitchen/update/${orderId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadOrders(); // Refresh the orders list
+            })
+            .catch(error => {
+                console.error('Error updating order:', error);
+            });
+        }
+
+        // Load orders immediately and every 15 seconds
+        loadOrders();
+        setInterval(loadOrders, 15000);
+    </script>
+</body>
+</html>
