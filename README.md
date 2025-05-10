@@ -5,5 +5,6 @@
 1. Import all the required SQLite packages using the setup file provided
 2. Open the "os project" folder in VSCode or any other coding environment 
 3. Run the "flaskcode.py" using the appropriate python interpreter
-4. Click on the http server generated in the terminal which will relocate you to the authorization page
-5. Navigate yourself further in the application and enjoy
+4. All the html files are in the "templates" folder
+5. Click on the http server generated in the terminal which will relocate you to the authorization page
+6. Navigate yourself further in the application and enjoy
